@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  # stdio transport mode - direct stdin/stdout communication
+  mcp-payment:
+    build: .
+    environment:
+      - PROVIDER=${PROVIDER:-moka}
+      - DEALER_CODE=${DEALER_CODE}
+      - USERNAME=${USERNAME}
+      - PASSWORD=${PASSWORD}
+      - CUSTOMER_TYPE_ID=${CUSTOMER_TYPE_ID:-2}
+    volumes:
+      - ./logs:/app/logs
+    stdin_open: true
+    tty: true
