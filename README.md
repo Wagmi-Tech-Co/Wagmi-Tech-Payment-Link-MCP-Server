@@ -26,7 +26,7 @@ This server uses **stdio transport** for direct MCP client connections via stdin
 
 ### Building the Image
 ```bash
-docker build -t mcp-payment-server .
+docker build -t payment-mcp-server .
 ```
 
 ### Running the Server
@@ -38,10 +38,10 @@ docker run -it \
   -e USERNAME="your_username" \
   -e PASSWORD="your_password" \
   -e CUSTOMER_TYPE_ID="your_customer_id" \
-  mcp-payment-server
+  payment-mcp-server
 
 # Or with .env file
-docker run -it --env-file .env mcp-payment-server
+docker run -it --env-file .env payment-mcp-server
 
 # Run with different provider (currently only moka is supported)
 docker run -it \
@@ -49,7 +49,7 @@ docker run -it \
   -e DEALER_CODE="your_dealer_code" \
   -e USERNAME="your_username" \
   -e PASSWORD="your_password" \
-  mcp-payment-server
+  payment-mcp-server
 
 # The server communicates via stdin/stdout for direct MCP client connection
 ```
@@ -62,7 +62,7 @@ echo "PROVIDER=moka" > .env
 echo "DEALER_CODE=your_dealer_code" >> .env
 echo "USERNAME=your_username" >> .env  
 echo "PASSWORD=your_password" >> .env
-echo "CUSTOMER_TYPE_ID=2" >> .env
+echo "CUSTOMER_TYPE_ID=your_type_id" >> .env
 
 # Run the server
 docker-compose up
@@ -76,7 +76,7 @@ docker-compose up
 | `DEALER_CODE` | Payment provider dealer code | Required |
 | `USERNAME` | Payment provider username | Required |
 | `PASSWORD` | Payment provider password | Required |
-| `CUSTOMER_TYPE_ID` | Customer type ID | 2 |
+| `CUSTOMER_TYPE_ID` | Customer type ID | Required |
 
 ## CLI Options
 
@@ -86,7 +86,7 @@ docker-compose up
 | `--dealer-code` | Payment provider dealer code | Required |
 | `--username` | Payment provider username | Required |
 | `--password` | Payment provider password | Required |
-| `--customer-type-id` | Customer type ID | 2 |
+| `--customer-type-id` | Customer type ID | Required |
 | `--host` | Server host | 0.0.0.0 |
 | `--port` | Server port | 8050 |
 
@@ -112,14 +112,14 @@ Creates a payment request
 Logs are saved to `/app/logs/` inside the container. To persist logs, mount a volume:
 
 ```bash
-docker run -v ./logs:/app/logs mcp-payment-server
+docker run -v ./logs:/app/logs payment-mcp-server
 ```
 
 ## Usage Example
 
 ### 1. Build the Docker Image
 ```bash
-docker build -t mcp-payment-server .
+docker build -t payment-mcp-server .
 ```
 
 ### 2. Configure MCP Client
@@ -128,7 +128,7 @@ Add the server configuration to your MCP client (e.g., Claude Desktop):
 ```json
 {
   "mcpServers": {
-    "mcp-server-payment": {
+    "payment-mcp-server": {
       "command": "docker",
       "args": [
         "run",
@@ -139,7 +139,7 @@ Add the server configuration to your MCP client (e.g., Claude Desktop):
         "-e", "USERNAME",
         "-e", "PASSWORD",
         "-e", "CUSTOMER_TYPE_ID",
-        "mcp-payment-server"
+        "payment-mcp-server"
       ],
       "env": {
         "PROVIDER": "moka",
@@ -161,8 +161,8 @@ docker run -it \
   -e DEALER_CODE="your_dealer_code" \
   -e USERNAME="your_username" \
   -e PASSWORD="your_password" \
-  -e CUSTOMER_TYPE_ID="2" \
-  mcp-payment-server
+  -e CUSTOMER_TYPE_ID="your_type_id" \
+  payment-mcp-server
 
 ```
 
