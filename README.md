@@ -1,25 +1,8 @@
-# MCP Payment Server
+# Payment MCP Server
 
 **Turkey's First Payment MCP Server**
 
 The Wagmi Tech Payment MCP Server is a Model Context Protocol (MCP) server that provides seamless integration with Turkish payment service providers, allowing developers and AI agents to create and manage payment links effortlessly.
-
-## Architecture
-
-This server follows clean architecture principles with clear separation of concerns:
-
-- **`core/`** - Core business logic and interfaces
-- **`providers/`** - Payment provider implementations (Moka United, extensible for others)
-- **`utils/`** - Utility functions (logging, authentication, validation)
-- **`errors/`** - Custom error handling classes
-- **`config/`** - Configuration management
-
-## Supported Providers 
-
-- **Moka United** - One of Turkey's leading payment service providers ✅
-- **More providers coming soon**... 🔄
-
-*As Turkey's first Payment MCP Server, we're committed to expanding support for all major payment service providers.*
 
 ## Use Cases
 
@@ -30,6 +13,77 @@ Transform how payments work with our Payment MCP Server:
 - **E-commerce Innovation**: Integrate payment creation into AI-powered sales processes
 - **Business Automation**: Streamline invoicing and payment collection workflows
 - **Dealership Management**: Enable dealerships and retail businesses to collect payments, deposits, and installments through AI-driven systems
+
+## Supported Providers 
+
+- **Moka United** - One of Turkey's leading payment service providers ✅
+- **More providers coming soon**... 🔄
+
+*As Turkey's first Payment MCP Server, we're committed to expanding support for all major payment service providers.*
+
+## Usage with MCP Client (e.g., Claude Desktop, Cursor)
+
+### 1. Build the Docker Image
+```bash
+docker build -t payment-mcp-server .
+```
+
+### 2. Configure MCP Client
+Add the server configuration to your MCP client (e.g., Claude Desktop, Cursor):
+```json
+{
+  "mcpServers": {
+    "payment-mcp-server": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "-e", "PROVIDER",
+        "-e", "DEALER_CODE",
+        "-e", "USERNAME",
+        "-e", "PASSWORD",
+        "-e", "CUSTOMER_TYPE_ID",
+        "payment-mcp-server"
+      ],
+      "env": {
+        "PROVIDER": "moka",
+        "DEALER_CODE": "your_dealer_code",
+        "USERNAME": "your_username",
+        "PASSWORD": "your_password",
+        "CUSTOMER_TYPE_ID": "your_customer_type_id"
+      }
+    }
+  }
+}
+```
+
+### 3. Test the Server (Optional)
+```bash
+# Test with environment variables
+docker run -it \
+  -e PROVIDER="moka" \
+  -e DEALER_CODE="your_dealer_code" \
+  -e USERNAME="your_username" \
+  -e PASSWORD="your_password" \
+  -e CUSTOMER_TYPE_ID="your_type_id" \
+  payment-mcp-server
+
+```
+
+### 4. Use in MCP Client
+Once configured, you can use the `create_payment_link` tool in your MCP client to create  payment requests.
+
+
+## Architecture
+
+This server follows clean architecture principles with clear separation of concerns:
+
+- **`core/`** - Core business logic and interfaces
+- **`providers/`** - Payment provider implementations (Moka United, extensible for others)
+- **`utils/`** - Utility functions (logging, authentication, validation)
+- **`errors/`** - Custom error handling classes
+- **`config/`** - Configuration management
 
 ## Transport Mode
 
@@ -128,62 +182,7 @@ Logs are saved to `/app/logs/` inside the container. To persist logs, mount a vo
 docker run -v ./logs:/app/logs payment-mcp-server
 ```
 
-## Usage with MCP Client (e.g., Claude Desktop, Cursor)
-
-### 1. Build the Docker Image
-```bash
-docker build -t payment-mcp-server .
-```
-
-### 2. Configure MCP Client
-Add the server configuration to your MCP client (e.g., Claude Desktop, Cursor):
-```json
-{
-  "mcpServers": {
-    "payment-mcp-server": {
-      "command": "docker",
-      "args": [
-        "run",
-        "-i",
-        "--rm",
-        "-e", "PROVIDER",
-        "-e", "DEALER_CODE",
-        "-e", "USERNAME",
-        "-e", "PASSWORD",
-        "-e", "CUSTOMER_TYPE_ID",
-        "payment-mcp-server"
-      ],
-      "env": {
-        "PROVIDER": "moka",
-        "DEALER_CODE": "your_dealer_code",
-        "USERNAME": "your_username",
-        "PASSWORD": "your_password",
-        "CUSTOMER_TYPE_ID": "your_customer_type_id"
-      }
-    }
-  }
-}
-```
-
-### 3. Test the Server (Optional)
-```bash
-# Test with environment variables
-docker run -it \
-  -e PROVIDER="moka" \
-  -e DEALER_CODE="your_dealer_code" \
-  -e USERNAME="your_username" \
-  -e PASSWORD="your_password" \
-  -e CUSTOMER_TYPE_ID="your_type_id" \
-  payment-mcp-server
-
-```
-
-### 4. Use in MCP Client
-Once configured, you can use the `create_payment_link` tool in your MCP client to create  payment requests.
-
-
-
-## 📧 Support & Help
+## Support & Help
 
 Need help setting up or using the Wagmi Tech Payment MCP Server? 
 
