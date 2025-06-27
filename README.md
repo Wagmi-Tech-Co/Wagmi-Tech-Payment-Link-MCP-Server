@@ -2,7 +2,7 @@
 
 **Turkey's First Payment MCP Server**
 
-The Wagmi Tech Payment MCP Server is a Model Context Protocol (MCP) server that provides seamless integration with Turkish payment service providers, allowing developers and AI agents to create and manage payment links effortlessly.
+The Wagmi Tech Payment MCP Server is a Model Context Protocol (MCP) server that provides seamless integration with payment service providers, allowing developers and AI agents to create and manage payment links effortlessly.
 
 ## Use Cases
 
