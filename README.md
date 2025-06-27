@@ -21,6 +21,22 @@ Transform how payments work with our Payment MCP Server:
 
 *As Turkey's first Payment MCP Server, we're committed to expanding support for all major payment service providers.*
 
+## Available Tools
+
+### create_payment_link
+Creates a payment request 
+
+**Required Parameters:**
+- `amount` (float): Payment amount
+
+**Optional Parameters:**
+- `other_trx_code` (string): Transaction code for reconciliation
+- `full_name` (string): Customer full name
+- `email` (string): Customer email
+- `currency` (string): Payment currency (default: "TL")
+- `installment_number` (int): Number of installments
+- And many more...
+
 ## Usage with MCP Client (e.g., Claude Desktop, Cursor)
 
 ### 1. Build the Docker Image
@@ -71,9 +87,10 @@ docker run -it \
 
 ```
 
-### 4. Use in MCP Client
+### 4. Ready to Use in MCP Client
 Once configured, you can use the `create_payment_link` tool in your MCP client to create  payment requests.
 
+---
 
 ## Architecture
 
@@ -157,23 +174,6 @@ docker-compose up
 | `--host` | Server host | 0.0.0.0 |
 | `--port` | Server port | 8050 |
 
-
-## Available Tools
-
-### create_payment_link
-Creates a payment request 
-
-**Required Parameters:**
-- `amount` (float): Payment amount
-
-**Optional Parameters:**
-- `other_trx_code` (string): Transaction code for reconciliation
-- `full_name` (string): Customer full name
-- `email` (string): Customer email
-- `currency` (string): Payment currency (default: "TL")
-- `installment_number` (int): Number of installments
-- And many more...
-
 ## Logs
 
 Logs are saved to `/app/logs/` inside the container. To persist logs, mount a volume:
@@ -181,6 +181,7 @@ Logs are saved to `/app/logs/` inside the container. To persist logs, mount a vo
 ```bash
 docker run -v ./logs:/app/logs payment-mcp-server
 ```
+---
 
 ## Support & Help
 
@@ -190,10 +191,7 @@ Need help setting up or using the Wagmi Tech Payment MCP Server?
 
 We're here to help you integrate payment capabilities into your AI workflows.
 
-
-## Our Mission
-
-We're pioneering the future of payments in Turkey by bridging AI and financial technology. This Payment MCP Server is just the beginning of our vision to make payment processing more intelligent, accessible, and integrated into the AI ecosystem.
+This Payment MCP Server is just the beginning of our vision to make payment processing more intelligent, accessible, and integrated into the AI ecosystem.
 
 ### [Wagmi Tech](https://www.wagmi.tech/)
 *We're All Gonna Make It!* 
