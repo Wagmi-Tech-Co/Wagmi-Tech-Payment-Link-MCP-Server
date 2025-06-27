@@ -1,6 +1,8 @@
 # MCP Payment Server
 
-A Model Context Protocol (MCP) server for payment processing using stdio transport.
+**Turkey's First Payment MCP Server**
+
+The Wagmi Tech Payment MCP Server is a Model Context Protocol (MCP) server that provides seamless integration with Turkish payment service providers, allowing developers and AI agents to create and manage payment links effortlessly.
 
 ## Architecture
 
@@ -14,9 +16,20 @@ This server follows clean architecture principles with clear separation of conce
 
 ## Supported Providers 
 
-- **Moka United** - Turkish payment gateway
+- **Moka United** - One of Turkey's leading payment service providers ✅
+- **More providers coming soon**... 🔄
 
-- **More is coming**.... 
+*As Turkey's first Payment MCP Server, we're committed to expanding support for all major payment service providers.*
+
+## Use Cases
+
+Transform how payments work with our Payment MCP Server:
+
+- **AI Customer Service**: Let AI assistants create payment links during customer interactions
+- **Automated Billing**: Generate payment requests through conversational AI
+- **E-commerce Innovation**: Integrate payment creation into AI-powered sales processes
+- **Business Automation**: Streamline invoicing and payment collection workflows
+- **Dealership Management**: Enable dealerships and retail businesses to collect payments, deposits, and installments through AI-driven systems
 
 ## Transport Mode
 
@@ -115,7 +128,7 @@ Logs are saved to `/app/logs/` inside the container. To persist logs, mount a vo
 docker run -v ./logs:/app/logs payment-mcp-server
 ```
 
-## Usage Example
+## Usage with MCP Client (e.g., Claude Desktop, Cursor)
 
 ### 1. Build the Docker Image
 ```bash
@@ -123,8 +136,7 @@ docker build -t payment-mcp-server .
 ```
 
 ### 2. Configure MCP Client
-Add the server configuration to your MCP client (e.g., Claude Desktop):
-
+Add the server configuration to your MCP client (e.g., Claude Desktop, Cursor):
 ```json
 {
   "mcpServers": {
@@ -168,4 +180,24 @@ docker run -it \
 
 ### 4. Use in MCP Client
 Once configured, you can use the `create_payment_link` tool in your MCP client to create  payment requests.
+
+
+
+## 📧 Support & Help
+
+Need help setting up or using the Wagmi Tech Payment MCP Server? 
+
+**Contact us:** hello@wagmitech.co
+
+We're here to help you integrate payment capabilities into your AI workflows.
+
+
+## Our Mission
+
+We're pioneering the future of payments in Turkey by bridging AI and financial technology. This Payment MCP Server is just the beginning of our vision to make payment processing more intelligent, accessible, and integrated into the AI ecosystem.
+
+### [Wagmi Tech](https://www.wagmi.tech/)
+*We're All Gonna Make It!* 
+
+---
 
