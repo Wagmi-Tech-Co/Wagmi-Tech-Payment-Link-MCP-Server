@@ -17,11 +17,13 @@ from errors.exceptions import PaymentError, ConfigurationError
 class PaymentMCPServer:
     """Main MCP server class with clean architecture."""
     
-    def __init__(self, provider_name: str = "moka"):
+    def __init__(self, provider_name: str = "moka", host: str = "0.0.0.0", port: int = 8050):
         self.logger = setup_logger(__name__)
         self.provider_name = provider_name
         self.provider = None
         self.mcp = None
+        self.host = host
+        self.port = port
     
     async def initialize(self) -> FastMCP:
         """Initialize the MCP server and provider."""
@@ -37,8 +39,8 @@ class PaymentMCPServer:
             server_config = config_manager.get_server_config()
             self.mcp = FastMCP(
                 name=server_config.name,
-                host=server_config.host,
-                port=server_config.port,
+                host=self.host,
+                port=self.port,
             )
             
             # Register tools
@@ -173,7 +175,8 @@ class PaymentMCPServer:
 @click.option('--customer-type-id', envvar='CUSTOMER_TYPE_ID', default='2', help='Customer type ID (default: 2)')
 @click.option('--host', default='0.0.0.0', help='Server host (default: 0.0.0.0)')
 @click.option('--port', default=8050, help='Server port (default: 8050)')
-def main(provider, dealer_code, username, password, customer_type_id, host, port):
+@click.option('--transport', envvar='TRANSPORT', default='stdio', help='Transport type (default: stdio)')
+def main(provider, dealer_code, username, password, customer_type_id, host, port, transport):
     """Start the Payment MCP server with clean architecture."""
     
     # Load environment variables
@@ -196,19 +199,26 @@ def main(provider, dealer_code, username, password, customer_type_id, host, port
             raise ConfigurationError(
                 f"Unsupported provider '{provider}'. Available: {', '.join(available_providers)}"
             )
+        valid_transports = ['stdio', 'sse']
+        if transport not in valid_transports:
+            raise ConfigurationError(
+                f"Unsupported transport '{transport}'. Available: {', '.join(valid_transports)}"
+            )
         
+        logger.info(f"Starting Payment MCP server with provider: {provider}")
+        logger.info(f"Transport: {transport}")
         logger.info(f"Starting Payment MCP server with provider: {provider}")
         logger.info(f"Server will run on {host}:{port}")
         
         async def _run():
-            server = PaymentMCPServer(provider_name=provider)
+            server = PaymentMCPServer(provider_name=provider, host=host, port=port)
             mcp = await server.initialize()
             logger.info("Payment MCP server started successfully")
             return mcp
         
         # Run the server
         mcp = asyncio.run(_run())
-        mcp.run()
+        mcp.run(transport=transport)
         
     except Exception as e:
         logger.error(f"Failed to start server: {str(e)}")

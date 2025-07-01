@@ -46,6 +46,8 @@ docker build -t payment-mcp-server .
 
 ### 2. Configure MCP Client
 Add the server configuration to your MCP client (e.g., Claude Desktop, Cursor):
+
+**For stdio transport (default):**
 ```json
 {
   "mcpServers": {
@@ -74,9 +76,27 @@ Add the server configuration to your MCP client (e.g., Claude Desktop, Cursor):
 }
 ```
 
+**For SSE transport (multi-connection support):**
+
+First, run the server:
+```bash
+docker run -e DEALER_CODE="your_dealer_code" -e USERNAME="your_username" -e PASSWORD="your_password" -e CUSTOMER_TYPE_ID="your_type_id" -e TRANSPORT="sse" -p 8050:8050 payment-mcp-server
+```
+
+Then configure your MCP client to connect via HTTP:
+```json
+{
+  "mcpServers": {
+    "payment-mcp-server": {
+      "url": "http://localhost:8050/sse"
+    }
+  }
+}
+```
+
 ### 3. Test the Server (Optional)
 ```bash
-# Test with environment variables
+# Test with stdio transport (default)
 docker run -it \
   -e PROVIDER="moka" \
   -e DEALER_CODE="your_dealer_code" \
@@ -84,6 +104,10 @@ docker run -it \
   -e PASSWORD="your_password" \
   -e CUSTOMER_TYPE_ID="your_type_id" \
   payment-mcp-server
+
+# Test with SSE transport (multi-connection support)
+docker run -e DEALER_CODE="your_dealer_code" -e USERNAME="your_username" -e PASSWORD="your_password" -e CUSTOMER_TYPE_ID="your_type_id" -e TRANSPORT="sse" -p 8050:8050 payment-mcp-server
+# Then access via http://localhost:8050
 
 ```
 
@@ -102,9 +126,27 @@ This server follows clean architecture principles with clear separation of conce
 - **`errors/`** - Custom error handling classes
 - **`config/`** - Configuration management
 
-## Transport Mode
+## Transport Modes
 
-This server uses **stdio transport** for direct MCP client connections via stdin/stdout communication.
+This server supports two transport modes:
+
+### 1. **stdio transport** (Default)
+For direct MCP client connections via stdin/stdout communication.
+
+### 2. **SSE transport** (Server-Sent Events)
+For one-side one-account multi-connections support. This allows:
+- **Multiple concurrent connections** from different clients using the same account credentials
+- **Real-time payment link creation** across multiple sessions
+- **Scalable architecture** for businesses with multiple touchpoints
+- **Shared account state** across all connected clients
+
+**Connection method**: Set `TRANSPORT=sse` and connect via HTTP (e.g., `http://localhost:8050`)
+
+Perfect for:
+- **Call centers** with multiple agents using the same merchant account
+- **Multi-branch businesses** accessing the same payment provider credentials
+- **Team environments** where multiple users need to create payment links
+- **Load-balanced applications** with multiple instances
 
 ## Docker Usage
 
@@ -136,6 +178,12 @@ docker run -it \
   payment-mcp-server
 
 # The server communicates via stdin/stdout for direct MCP client connection
+
+# For SSE transport (multi-connection support)
+docker run -e DEALER_CODE="your_dealer_code" -e USERNAME="your_username" -e PASSWORD="your_password" -e CUSTOMER_TYPE_ID="your_type_id" -e TRANSPORT="sse" -p 8050:8050 payment-mcp-server
+
+# SSE transport enables multiple concurrent connections to the same payment account
+# Connect to the server via http://localhost:8050 or http://your_server_ip:8050
 ```
 
 ## Docker Compose Usage
@@ -148,8 +196,12 @@ echo "USERNAME=your_username" >> .env
 echo "PASSWORD=your_password" >> .env
 echo "CUSTOMER_TYPE_ID=your_type_id" >> .env
 
-# Run the server
-docker-compose up
+# Run with stdio transport (default)
+docker-compose --profile stdio up
+
+# Run with SSE transport (multi-connection support)
+docker-compose --profile sse up
+# Then access via http://localhost:8050
 ```
 
 ## Environment Variables
@@ -161,6 +213,7 @@ docker-compose up
 | `USERNAME` | Payment provider username | Required |
 | `PASSWORD` | Payment provider password | Required |
 | `CUSTOMER_TYPE_ID` | Customer type ID | Required |
+| `TRANSPORT` | Transport mode (stdio/sse) | stdio |
 
 ## CLI Options
 
@@ -173,6 +226,7 @@ docker-compose up
 | `--customer-type-id` | Customer type ID | Required |
 | `--host` | Server host | 0.0.0.0 |
 | `--port` | Server port | 8050 |
+| `--transport` | Transport mode (stdio/sse) (env: TRANSPORT) | stdio |
 
 ## Logs
 

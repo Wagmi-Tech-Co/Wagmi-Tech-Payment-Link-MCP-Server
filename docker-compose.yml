@@ -1,16 +1,34 @@
 version: '3.8'
 
 services:
-  # stdio transport mode - direct stdin/stdout communication
-  mcp-payment:
+  payment-server-stdio:
     build: .
     environment:
-      - PROVIDER=${PROVIDER:-moka}
+      - PROVIDER=moka
       - DEALER_CODE=${DEALER_CODE}
       - USERNAME=${USERNAME}
       - PASSWORD=${PASSWORD}
       - CUSTOMER_TYPE_ID=${CUSTOMER_TYPE_ID:-2}
+      - TRANSPORT=stdio
     volumes:
       - ./logs:/app/logs
-    stdin_open: true
-    tty: true
+    profiles:
+      - stdio
+
+  payment-server-sse:
+    build: .
+    environment:
+      - PROVIDER=moka
+      - DEALER_CODE=${DEALER_CODE}
+      - USERNAME=${USERNAME}
+      - PASSWORD=${PASSWORD}
+      - CUSTOMER_TYPE_ID=${CUSTOMER_TYPE_ID:-2}
+      - TRANSPORT=sse
+      - HOST=0.0.0.0
+      - PORT=8050
+    ports:
+      - "8050:8050"
+    volumes:
+      - ./logs:/app/logs
+    profiles:
+      - sse
