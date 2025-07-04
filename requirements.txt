@@ -2,3 +2,6 @@ mcp[cli]==1.6.0
 python-dotenv
 httpx
 click
+fastapi
+starlette
+uvicorn[standard]

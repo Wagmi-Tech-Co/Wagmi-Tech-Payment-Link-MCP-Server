@@ -1,6 +1,7 @@
 version: '3.8'
 
 services:
+  # STDIO Transport - for desktop applications like Claude Desktop
   payment-server-stdio:
     build: .
     environment:
@@ -8,27 +9,39 @@ services:
       - DEALER_CODE=${DEALER_CODE}
       - USERNAME=${USERNAME}
       - PASSWORD=${PASSWORD}
-      - CUSTOMER_TYPE_ID=${CUSTOMER_TYPE_ID:-2}
+      - CUSTOMER_TYPE_ID=${CUSTOMER_TYPE_ID}
       - TRANSPORT=stdio
     volumes:
       - ./logs:/app/logs
     profiles:
       - stdio
+    restart: unless-stopped
 
+  # SSE Transport - for web applications like LibreChat  
   payment-server-sse:
     build: .
     environment:
       - PROVIDER=moka
-      - DEALER_CODE=${DEALER_CODE}
-      - USERNAME=${USERNAME}
-      - PASSWORD=${PASSWORD}
-      - CUSTOMER_TYPE_ID=${CUSTOMER_TYPE_ID:-2}
       - TRANSPORT=sse
       - HOST=0.0.0.0
       - PORT=8050
+      # Note: For SSE transport, credentials are provided via headers per request
+      # No need to set DEALER_CODE, USERNAME, PASSWORD here
     ports:
       - "8050:8050"
     volumes:
       - ./logs:/app/logs
     profiles:
       - sse
+      - default  # Make SSE the default profile
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8050/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  default:
+    name: payment-mcp-network

@@ -4,12 +4,18 @@ Clean MCP Payment Server with provider-based architecture.
 import os
 import asyncio
 import click
-from typing import Dict, Any
-from mcp.server.fastmcp import FastMCP
+from typing import Dict, Any, Optional
+from fastapi import FastAPI, HTTPException, Request
+from starlette.applications import Starlette
+from starlette.routing import Route, Mount
 from dotenv import load_dotenv
+
+from mcp.server.fastmcp import FastMCP
+from mcp.server.sse import SseServerTransport
 
 from config.settings import config_manager
 from providers.factory import ProviderFactory
+from core.interfaces import ProviderCredentials
 from utils.logging import setup_logger
 from errors.exceptions import PaymentError, ConfigurationError
 
@@ -17,20 +23,21 @@ from errors.exceptions import PaymentError, ConfigurationError
 class PaymentMCPServer:
     """Main MCP server class with clean architecture."""
     
-    def __init__(self, provider_name: str = "moka", host: str = "0.0.0.0", port: int = 8050):
+    def __init__(self, provider_name: str = "moka", host: str = "0.0.0.0", port: int = 8050, transport: str = "stdio"):
         self.logger = setup_logger(__name__)
         self.provider_name = provider_name
         self.provider = None
         self.mcp = None
         self.host = host
         self.port = port
+        self.transport = transport
+        self._current_headers = {}
+        self.sse_transport = None
+        self.app = None
     
     async def initialize(self) -> FastMCP:
         """Initialize the MCP server and provider."""
         try:
-            # Validate configuration
-            config_manager.validate_config()
-            
             # Create payment provider
             self.provider = ProviderFactory.create_provider(self.provider_name)
             self.logger.info(f"Initialized {self.provider.get_provider_name()} provider")
@@ -38,13 +45,15 @@ class PaymentMCPServer:
             # Create MCP server
             server_config = config_manager.get_server_config()
             self.mcp = FastMCP(
-                name=server_config.name,
-                host=self.host,
-                port=self.port,
+                name=server_config.name
             )
             
             # Register tools
             self._register_tools()
+            
+            # Set up transport based on type
+            if self.transport == "sse":
+                self._setup_sse_server()
             
             self.logger.info("Payment MCP server initialized successfully")
             return self.mcp
@@ -52,6 +61,119 @@ class PaymentMCPServer:
         except Exception as e:
             self.logger.error(f"Failed to initialize server: {str(e)}")
             raise
+    
+    def _setup_sse_server(self):
+        """Set up SSE server with header authentication."""
+        self.logger.info("Setting up SSE server with header authentication")
+        
+        # Create SSE transport
+        self.sse_transport = SseServerTransport("/messages/")
+        
+        # Create the SSE handler that can access request headers
+        async def handle_sse(request: Request):
+            # Extract headers for authentication
+            self._current_headers = dict(request.headers)
+            self.logger.info(f"SSE connection with {len(self._current_headers)} headers")
+            self.logger.debug(f"Available headers: {list(self._current_headers.keys())}")
+            
+            # Check for authentication headers
+            credentials = self._get_credentials_from_headers()
+            if not credentials:
+                self.logger.warning("SSE connection rejected: missing authentication headers")
+                raise HTTPException(
+                    status_code=401, 
+                    detail="Missing authentication headers: X-Dealer-Code, X-Username, X-Password, X-Customer-Type-ID required"
+                )
+            
+            self.logger.info(f"SSE connection authenticated for dealer: {credentials.dealer_code}")
+            
+            # Connect to SSE transport
+            async with self.sse_transport.connect_sse(
+                request.scope,
+                request.receive,
+                request._send
+            ) as (in_stream, out_stream):
+                # Run the MCP server
+                await self.mcp._mcp_server.run(
+                    in_stream,
+                    out_stream,
+                    self.mcp._mcp_server.create_initialization_options()
+                )
+        
+        # Create Starlette app for SSE endpoints
+        sse_app = Starlette(
+            routes=[
+                Route("/sse", handle_sse, methods=["GET"]),
+                Mount("/messages/", app=self.sse_transport.handle_post_message)
+            ]
+        )
+        
+        # Create FastAPI app and mount SSE app
+        self.app = FastAPI(title="Payment MCP Server")
+        self.app.mount("/", sse_app)
+        
+        # Add health check endpoint
+        @self.app.get("/health")
+        def health_check():
+            return {"message": "Payment MCP Server is running", "transport": "sse"}
+    
+    def _get_credentials_from_headers(self, request_headers: Dict[str, str] = None) -> Optional[ProviderCredentials]:
+        """Extract credentials from request headers for SSE transport."""
+        try:
+            # Use provided headers or captured headers
+            headers = request_headers or self._current_headers
+            
+            # Debug logging
+            self.logger.debug(f"Attempting to extract credentials from {len(headers)} headers")
+            self.logger.debug(f"Available header keys: {list(headers.keys())}")
+            
+            # Try different header formats (case-insensitive)
+            header_keys = {k.lower(): k for k in headers.keys()}
+            
+            dealer_code = (
+                headers.get(header_keys.get('x-dealer-code', ''), '') or
+                headers.get(header_keys.get('dealer-code', ''), '') or
+                headers.get(header_keys.get('dealercode', ''), '') or ''
+            )
+            
+            username = (
+                headers.get(header_keys.get('x-username', ''), '') or
+                headers.get(header_keys.get('username', ''), '') or ''
+            )
+            
+            password = (
+                headers.get(header_keys.get('x-password', ''), '') or
+                headers.get(header_keys.get('password', ''), '') or ''
+            )
+            
+            customer_type_id_str = (
+                headers.get(header_keys.get('x-customer-type-id', ''), '') or
+                headers.get(header_keys.get('customer-type-id', ''), '') or
+                headers.get(header_keys.get('customertypeid', ''), '') or ''
+            )
+            
+            try:
+                customer_type_id = int(customer_type_id_str) if customer_type_id_str else 0
+            except ValueError:
+                customer_type_id = 0
+            
+            # Debug the extracted values (without showing password)
+            self.logger.debug(f"Extracted - dealer_code: '{dealer_code}', username: '{username}', password: {'*' * len(password) if password else ''}, customer_type_id: {customer_type_id}")
+            
+            if not all([dealer_code, username, password]) or customer_type_id == 0:
+                self.logger.warning(f"Missing required authentication headers. Found: dealer_code={bool(dealer_code)}, username={bool(username)}, password={bool(password)}, customer_type_id={customer_type_id}")
+                return None
+                
+            return ProviderCredentials(
+                dealer_code=dealer_code,
+                username=username,
+                password=password,
+                customer_type_id=customer_type_id
+            )
+            
+        except Exception as e:
+            self.logger.error(f"Error extracting credentials from headers: {str(e)}")
+            return None
     
     def _register_tools(self):
         """Register MCP tools."""
@@ -92,6 +214,10 @@ class PaymentMCPServer:
             Required parameters:
             - amount: Payment amount
             
+            Authentication:
+            - For SSE transport: Provide credentials via headers (X-Dealer-Code, X-Username, X-Password, X-Customer-Type-ID)
+            - For stdio transport: Credentials are read from environment variables
+            
             Optional parameters:
             - other_trx_code: Your unique transaction code for reconciliation (default is "1")
             - full_name: Full name of the customer
@@ -130,8 +256,37 @@ class PaymentMCPServer:
             - it is okay to use turkish characters in names and addresses.
             """
             try:
+                # Get credentials based on transport type
+                credentials = None
+                if self.transport == "sse":
+                    # Get credentials from headers (required for SSE transport)
+                    credentials = self._get_credentials_from_headers()
+                    
+                    if credentials:
+                        self.logger.info(f"Using header credentials for dealer: {credentials.dealer_code}")
+                    else:
+                        # No credentials available
+                        available_headers = list(self._current_headers.keys())
+                        self.logger.warning(f"No valid credentials found in headers. Available headers: {available_headers}")
+                        return {
+                            "error": "For SSE transport, credentials must be provided via headers: X-Dealer-Code, X-Username, X-Password, X-Customer-Type-ID", 
+                            "error_code": "MISSING_AUTH_HEADERS",
+                            "debug": {
+                                "available_headers": available_headers,
+                                "transport": self.transport
+                            }
+                        }
+                                                
+                else:
+                    # For stdio transport, validate environment variables
+                    try:
+                        config_manager.validate_config()
+                    except ConfigurationError as e:
+                        return {"error": str(e), "error_code": "CONFIG_ERROR"}
+                
                 return await self.provider.create_payment_link(
                     amount=amount,
+                    credentials=credentials,
                     other_trx_code=other_trx_code,
                     full_name=full_name,
                     gsm_number=gsm_number,
@@ -165,30 +320,28 @@ class PaymentMCPServer:
             except Exception as e:
                 self.logger.error(f"Unexpected error in create_payment_link: {str(e)}")
                 return {"error": f"Unexpected error: {str(e)}"}
+    
+    def run_sse_server(self):
+        """Run the SSE server using uvicorn."""
+        import uvicorn
+        self.logger.info(f"Starting SSE server on {self.host}:{self.port}")
+        uvicorn.run(self.app, host=self.host, port=self.port)
 
 
 @click.command()
 @click.option('--provider', envvar='PROVIDER', default='moka', help='Payment provider to use (default: moka)')
-@click.option('--dealer-code', envvar='DEALER_CODE', required=True, help='Dealer code')
-@click.option('--username', envvar='USERNAME', required=True, help='Username')
-@click.option('--password', envvar='PASSWORD', required=True, help='Password')
-@click.option('--customer-type-id', envvar='CUSTOMER_TYPE_ID', default='2', help='Customer type ID (default: 2)')
+@click.option('--dealer-code', envvar='DEALER_CODE', help='Dealer code (required for stdio transport)')
+@click.option('--username', envvar='USERNAME', help='Username (required for stdio transport)')
+@click.option('--password', envvar='PASSWORD', help='Password (required for stdio transport)')
+@click.option('--customer-type-id', envvar='CUSTOMER_TYPE_ID', help='Customer type ID (default: 2)')
 @click.option('--host', default='0.0.0.0', help='Server host (default: 0.0.0.0)')
 @click.option('--port', default=8050, help='Server port (default: 8050)')
-@click.option('--transport', envvar='TRANSPORT', default='stdio', help='Transport type (default: stdio)')
+@click.option('--transport', envvar='TRANSPORT', default='sse', help='Transport type (default: sse)')
 def main(provider, dealer_code, username, password, customer_type_id, host, port, transport):
     """Start the Payment MCP server with clean architecture."""
     
     # Load environment variables
     load_dotenv()
-    
-    # Set configuration from CLI options
-    config_manager.set_config_from_env({
-        'DEALER_CODE': dealer_code,
-        'USERNAME': username,
-        'PASSWORD': password,
-        'CUSTOMER_TYPE_ID': customer_type_id,
-    })
     
     logger = setup_logger(__name__)
     
@@ -207,18 +360,56 @@ def main(provider, dealer_code, username, password, customer_type_id, host, port
         
         logger.info(f"Starting Payment MCP server with provider: {provider}")
         logger.info(f"Transport: {transport}")
-        logger.info(f"Starting Payment MCP server with provider: {provider}")
         logger.info(f"Server will run on {host}:{port}")
         
-        async def _run():
-            server = PaymentMCPServer(provider_name=provider, host=host, port=port)
-            mcp = await server.initialize()
-            logger.info("Payment MCP server started successfully")
-            return mcp
+        if transport == 'sse':
+            # SSE transport - headers required at connection time
+            logger.info("SSE transport: credentials expected via headers (X-Dealer-Code, X-Username, X-Password)")
+            
+            async def _run_sse():
+                server = PaymentMCPServer(provider_name=provider, host=host, port=port, transport=transport)
+                await server.initialize()
+                return server
+            
+            # Initialize and run SSE server
+            server = asyncio.run(_run_sse())
+            server.run_sse_server()
+            
+        else:
+            # STDIO transport - validate credentials are provided
+            if not all([dealer_code, username, password, customer_type_id]):
+                missing = []
+                if not dealer_code:
+                    missing.append('--dealer-code')
+                if not username:
+                    missing.append('--username')
+                if not password:
+                    missing.append('--password')
+                if not customer_type_id:
+                    missing.append('--customer-type-id')
+                raise ConfigurationError(
+                    f"For stdio transport, the following options are required: {', '.join(missing)}"
+                )
+            
+            # Set configuration from CLI options for stdio transport
+            config_manager.set_config_from_env({
+                'DEALER_CODE': dealer_code,
+                'USERNAME': username,
+                'PASSWORD': password,
+                'CUSTOMER_TYPE_ID': customer_type_id,
+            })
+            
+            logger.info(f"STDIO transport: using configured credentials for dealer: {dealer_code}")
+            
+            async def _run_stdio():
+                server = PaymentMCPServer(provider_name=provider, host=host, port=port, transport=transport)
+                mcp = await server.initialize()
+                logger.info("Payment MCP server started successfully")
+                return mcp
         
-        # Run the server
-        mcp = asyncio.run(_run())
-        mcp.run(transport=transport)
+            # Run the stdio server
+            mcp = asyncio.run(_run_stdio())
+            mcp.run(transport=transport)
         
     except Exception as e:
         logger.error(f"Failed to start server: {str(e)}")

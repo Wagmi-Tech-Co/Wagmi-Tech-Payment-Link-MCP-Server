@@ -7,20 +7,28 @@ from typing import Optional
 from errors.exceptions import AuthenticationError
 
 
-def generate_moka_key() -> str:
+def generate_moka_key(credentials: Optional['ProviderCredentials'] = None) -> str:
     """
     Generate authentication key for Moka United API.
+    
+    Args:
+        credentials: Optional credentials to use instead of environment variables
     
     Returns:
         SHA256 hash of the concatenated credentials
         
     Raises:
-        AuthenticationError: If required environment variables are missing
+        AuthenticationError: If required credentials are missing
     """
     try:
-        dealer_code = os.getenv('DEALER_CODE')
-        username = os.getenv('USERNAME')
-        password = os.getenv('PASSWORD')
+        if credentials:
+            dealer_code = credentials.dealer_code
+            username = credentials.username
+            password = credentials.password
+        else:
+            dealer_code = os.getenv('DEALER_CODE')
+            username = os.getenv('USERNAME')
+            password = os.getenv('PASSWORD')
         
         if not all([dealer_code, username, password]):
             missing = []
@@ -32,7 +40,7 @@ def generate_moka_key() -> str:
                 missing.append('PASSWORD')
             
             raise AuthenticationError(
-                f"Missing required environment variables: {', '.join(missing)}"
+                f"Missing required credentials: {', '.join(missing)}"
             )
         
         key = f"{dealer_code}MK{username}PD{password}"
@@ -44,14 +52,33 @@ def generate_moka_key() -> str:
         raise AuthenticationError(f"Error generating authentication key: {str(e)}")
 
 
-def get_dealer_customer_type_id() -> int:
+def get_dealer_customer_type_id(credentials: Optional['ProviderCredentials'] = None) -> int:
     """
-    Get dealer customer type ID from environment variables.
+    Get dealer customer type ID from credentials or environment variables.
+    
+    Args:
+        credentials: Optional credentials to use instead of environment variables
     
     Returns:
-        Customer type ID, defaults to 2 if not set
+        Customer type ID
+        
+    Raises:
+        AuthenticationError: If customer type ID is missing or invalid
     """
     try:
-        return int(os.getenv("CUSTOMER_TYPE_ID", 2))
+        if credentials:
+            if credentials.customer_type_id <= 0:
+                raise AuthenticationError("Customer type ID must be provided and greater than 0")
+            return credentials.customer_type_id
+        
+        env_value = os.getenv("CUSTOMER_TYPE_ID")
+        if not env_value:
+            raise AuthenticationError("CUSTOMER_TYPE_ID environment variable is required")
+            
+        customer_type_id = int(env_value)
+        if customer_type_id <= 0:
+            raise AuthenticationError("Customer type ID must be greater than 0")
+            
+        return customer_type_id
     except ValueError:
-        return 2
+        raise AuthenticationError("Customer type ID must be a valid integer")
