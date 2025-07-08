@@ -42,10 +42,11 @@ ENV PASSWORD=""
 ENV CUSTOMER_TYPE_ID="2"
 ENV TRANSPORT="stdio"
 ENV HOST="0.0.0.0"
-ENV PORT="8050"
+ENV PORT="8060"
+ENV AUTH_TOKEN=""
 
 # Expose port for SSE transport (only used when TRANSPORT=sse)
-EXPOSE 8050
+EXPOSE 8060
 
 # Run the server with configurable transport
-CMD ["sh", "-c", "uv run python server.py --provider=$PROVIDER --dealer-code=$DEALER_CODE --username=$USERNAME --password=$PASSWORD --customer-type-id=$CUSTOMER_TYPE_ID --transport=$TRANSPORT --host=$HOST --port=$PORT"]
+CMD ["sh", "-c", "uv run python server.py --provider=$PROVIDER --dealer-code=$DEALER_CODE --username=$USERNAME --password=$PASSWORD --customer-type-id=$CUSTOMER_TYPE_ID --transport=$TRANSPORT --host=$HOST --port=$PORT --auth-token=$AUTH_TOKEN"]

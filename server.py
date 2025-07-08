@@ -4,9 +4,11 @@ Clean MCP Payment Server with provider-based architecture.
 import os
 import asyncio
 import click
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from mcp.server.fastmcp import FastMCP
 from dotenv import load_dotenv
+from fastmcp.server.auth import BearerAuthProvider
+from fastmcp.server.auth.providers.bearer import RSAKeyPair
 
 from config.settings import config_manager
 from providers.factory import ProviderFactory
@@ -17,13 +19,15 @@ from errors.exceptions import PaymentError, ConfigurationError
 class PaymentMCPServer:
     """Main MCP server class with clean architecture."""
     
-    def __init__(self, provider_name: str = "moka", host: str = "0.0.0.0", port: int = 8050):
+    def __init__(self, provider_name: str = "moka", host: str = "0.0.0.0", port: int = 8060, transport: str = "stdio", auth_token: Optional[str] = None):
         self.logger = setup_logger(__name__)
         self.provider_name = provider_name
         self.provider = None
         self.mcp = None
         self.host = host
         self.port = port
+        self.transport = transport
+        self.auth_token = auth_token
     
     async def initialize(self) -> FastMCP:
         """Initialize the MCP server and provider."""
@@ -34,13 +38,54 @@ class PaymentMCPServer:
             # Create payment provider
             self.provider = ProviderFactory.create_provider(self.provider_name)
             self.logger.info(f"Initialized {self.provider.get_provider_name()} provider")
-            
+
+            # Setup authentication if needed
+            self.logger.info(f"Transport: {self.transport}")
+            self.logger.info(f"Auth token: {self.auth_token}")
+            auth_provider = None
+            issuer_url = None
+            if self.transport == 'sse' and self.auth_token:
+                self.logger.info("SSE transport with auth token, setting up Bearer authentication.")
+                
+                # We generate a key on the fly. The token will be valid for this server session.
+                key_pair = RSAKeyPair.generate()
+                
+                issuer_url = "https://wagmi.tech/auth"
+                
+                auth_provider = BearerAuthProvider(
+                    public_key=key_pair.public_key,
+                    issuer=issuer_url,
+                    audience="wagmi-tech-payment-link-mcp-server"
+                )
+                
+                # The provided auth_token is used as the subject of the JWT
+                token = key_pair.create_token(
+                    subject=self.auth_token,
+                    issuer=issuer_url,
+                    audience="wagmi-tech-payment-link-mcp-server",
+                )
+                self.logger.info(f"--- Your Bearer Token for this session ---")
+                self.logger.info(f"Use this token in the 'Authorization' header: Bearer <token>")
+                self.logger.info(f"{token}")
+                self.logger.info(f"------------------------------------------")
+
             # Create MCP server
             server_config = config_manager.get_server_config()
+
+            auth_config = None
+            if auth_provider:
+                resource_server_url = f"http://{self.host}:{self.port}"
+                auth_config = {
+                    "issuer_url": issuer_url,
+                    "resource_server_url": resource_server_url,
+                }
+
             self.mcp = FastMCP(
                 name=server_config.name,
                 host=self.host,
                 port=self.port,
+                token_verifier=auth_provider,
+                auth=auth_config,
             )
             
             # Register tools
@@ -174,9 +219,10 @@ class PaymentMCPServer:
 @click.option('--password', envvar='PASSWORD', required=True, help='Password')
 @click.option('--customer-type-id', envvar='CUSTOMER_TYPE_ID', default='2', help='Customer type ID (default: 2)')
 @click.option('--host', default='0.0.0.0', help='Server host (default: 0.0.0.0)')
-@click.option('--port', default=8050, help='Server port (default: 8050)')
+@click.option('--port', default=8060, help='Server port (default: 8060)')
 @click.option('--transport', envvar='TRANSPORT', default='stdio', help='Transport type (default: stdio)')
-def main(provider, dealer_code, username, password, customer_type_id, host, port, transport):
+@click.option('--auth-token', envvar='AUTH_TOKEN', default=None, help='A string to identify the client, used to generate a bearer token for SSE transport.')
+def main(provider, dealer_code, username, password, customer_type_id, host, port, transport, auth_token):
     """Start the Payment MCP server with clean architecture."""
     
     # Load environment variables
@@ -211,7 +257,7 @@ def main(provider, dealer_code, username, password, customer_type_id, host, port
         logger.info(f"Server will run on {host}:{port}")
         
         async def _run():
-            server = PaymentMCPServer(provider_name=provider, host=host, port=port)
+            server = PaymentMCPServer(provider_name=provider, host=host, port=port, transport=transport, auth_token=auth_token)
             mcp = await server.initialize()
             logger.info("Payment MCP server started successfully")
             return mcp

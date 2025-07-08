@@ -22,12 +22,13 @@ services:
       - DEALER_CODE=${DEALER_CODE}
       - USERNAME=${USERNAME}
       - PASSWORD=${PASSWORD}
-      - CUSTOMER_TYPE_ID=${CUSTOMER_TYPE_ID:-2}
+      - CUSTOMER_TYPE_ID=${CUSTOMER_TYPE_ID}
       - TRANSPORT=sse
       - HOST=0.0.0.0
-      - PORT=8050
+      - PORT=8060
+      - AUTH_TOKEN=${AUTH_TOKEN}
     ports:
-      - "8050:8050"
+      - "8060:8060"
     volumes:
       - ./logs:/app/logs
     profiles:
