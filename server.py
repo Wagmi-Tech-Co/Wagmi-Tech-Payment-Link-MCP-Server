@@ -63,6 +63,7 @@ class PaymentMCPServer:
                     subject=self.auth_token,
                     issuer=issuer_url,
                     audience="wagmi-tech-payment-link-mcp-server",
+                    expires_in=31536000,
                 )
                 self.logger.info(f"--- Your Bearer Token for this session ---")
                 self.logger.info(f"Use this token in the 'Authorization' header: Bearer <token>")
