@@ -2,7 +2,17 @@
 Core interfaces for the payment system.
 """
 from abc import ABC, abstractmethod
-from typing import Dict, Any
+from typing import Dict, Any, Optional
+from dataclasses import dataclass
+
+
+@dataclass
+class ProviderCredentials:
+    """Credentials for payment provider."""
+    dealer_code: str
+    username: str
+    password: str
+    customer_type_id: int
 
 
 class PaymentProvider(ABC):
@@ -12,6 +22,8 @@ class PaymentProvider(ABC):
     async def create_payment_link(
         self,
         amount: float,
+        # Credentials for per-request authentication
+        credentials: Optional[ProviderCredentials] = None,
         other_trx_code: str = "1",
         full_name: str = "",
         gsm_number: str = "",

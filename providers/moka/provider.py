@@ -3,8 +3,8 @@ Moka United payment provider implementation.
 """
 import os
 import httpx
-from typing import Dict, Any
-from core.interfaces import PaymentProvider
+from typing import Dict, Any, Optional
+from core.interfaces import PaymentProvider, ProviderCredentials
 from providers.moka.constants import CREATE_USER_POS_PAYMENT
 from utils.auth import generate_moka_key, get_dealer_customer_type_id
 from utils.validation import validate_payment_request
@@ -26,6 +26,7 @@ class MokaProvider(PaymentProvider):
     async def create_payment_link(
         self,
         amount: float,
+        credentials: Optional[ProviderCredentials] = None,
         other_trx_code: str = "1",
         full_name: str = "",
         gsm_number: str = "",
@@ -67,8 +68,8 @@ class MokaProvider(PaymentProvider):
             validate_payment_request(payment_data)
             
             # Generate authentication key
-            auth_key = generate_moka_key()
-            dealer_customer_type_id = get_dealer_customer_type_id()
+            auth_key = generate_moka_key(credentials)
+            dealer_customer_type_id = get_dealer_customer_type_id(credentials)
             
             self.logger.info(f"Creating payment request for amount: {amount}")
             self.logger.debug(f"URL: {CREATE_USER_POS_PAYMENT}")
@@ -78,6 +79,7 @@ class MokaProvider(PaymentProvider):
             body = self._build_request_body(
                 auth_key=auth_key,
                 dealer_customer_type_id=dealer_customer_type_id,
+                credentials=credentials,
                 amount=amount,
                 other_trx_code=other_trx_code,
                 full_name=full_name,
@@ -120,8 +122,18 @@ class MokaProvider(PaymentProvider):
             self.logger.error(f"Unexpected error in payment creation: {str(e)}")
             raise PaymentProviderError(f"Unexpected error: {str(e)}")
     
-    def _build_request_body(self, auth_key: str, dealer_customer_type_id: int, **kwargs) -> Dict[str, Any]:
+    def _build_request_body(self, auth_key: str, dealer_customer_type_id: int, credentials: Optional[ProviderCredentials] = None, **kwargs) -> Dict[str, Any]:
         """Build the request body for Moka United API."""
+        
+        if credentials:
+            dealer_code = credentials.dealer_code
+            username = credentials.username
+            password = credentials.password
+            dealer_customer_type_id = credentials.customer_type_id
+        else:
+            dealer_code = os.getenv("DEALER_CODE")
+            username = os.getenv("USERNAME")
+            password = os.getenv("PASSWORD")
         
         # Handle automatic field population from main fields
         full_name = kwargs.get('full_name', '')
@@ -172,9 +184,9 @@ class MokaProvider(PaymentProvider):
         
         return {
             "DealerAuthentication": {
-                "DealerCode": os.getenv("DEALER_CODE"),
-                "Username": os.getenv("USERNAME"),
-                "Password": os.getenv("PASSWORD"),
+                "DealerCode": dealer_code,
+                "Username": username,
+                "Password": password,
                 "CheckKey": auth_key
             },
             "PaymentUserPosRequest": {

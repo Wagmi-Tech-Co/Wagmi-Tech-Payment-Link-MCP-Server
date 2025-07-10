@@ -11,6 +11,7 @@ ENV PYTHONUNBUFFERED=1
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
     gcc \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Install uv package manager
@@ -39,7 +40,21 @@ ENV PROVIDER="moka"
 ENV DEALER_CODE=""
 ENV USERNAME=""
 ENV PASSWORD=""
-ENV CUSTOMER_TYPE_ID="2"
+ENV CUSTOMER_TYPE_ID=""
+ENV TRANSPORT="sse"
+ENV HOST="0.0.0.0"
+ENV PORT="8050"
 
-# Run the server in stdio mode
-CMD ["uv","run","python", "server.py"]
+# Expose port for both SSE and stdio transports
+EXPOSE 8050
+
+# Health check for SSE transport
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost:8050/health || exit 1
+
+# Create a startup script that handles different transport types
+COPY start.sh /app/start.sh
+RUN chmod +x /app/start.sh
+
+# Run the startup script
+CMD ["/app/start.sh"]
