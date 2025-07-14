@@ -148,7 +148,7 @@ class PaymentMCPServer:
             - is_pool_payment: Indicates if it's a pool payment (default is 0)
             - is_pre_auth: Indicates if it's a pre-authorization (default is 0)
             - is_tokenized: Indicates if the payment is tokenized (default is 0)
-            - is_three_d: Indicates if 3D secure is enabled (default is 1)
+            - is_three_d: Indicates if 3D secure is mandatory. 0: not mandatory, 1: mandatory. (default is 1)
             - redirect_url: URL to redirect after payment
             - description: Description of the payment
             - customer_code: Customer code
@@ -158,9 +158,9 @@ class PaymentMCPServer:
             - customer_gsm_number: GSM number of the customer
             - customer_email: Email address of the customer
             - address: Address of the customer
-            - set_installment_by: Method to set installment (default is 1)
-            - commission_by_dealer: Commission by dealer (default is "0")
-            - is_commission_diff_by_dealer: Indicates if commission differs by dealer (default is 0)
+            - set_installment_by: Determines who sets the number of installments. 0: Customer, 1: Dealer. If 1, `installment_number` must be provided. (default is 1)
+            - commission_by_dealer: Determines who pays the commission. 0: Customer pays all. 1: Dealer pays for single payment, customer for installments. 2-11: Dealer pays for single payment and up to that many installments. 12: Dealer pays for all. (default is "0")
+            - is_commission_diff_by_dealer: If dealer pays for N installments, this decides commission for >N. 0: Customer pays full commission. 1: Customer pays the difference. (default is 0)
             - buyer_full_name: Full name of the buyer
             - buyer_email: Email address of the buyer
             - buyer_gsm_number: GSM number of the buyer
