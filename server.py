@@ -126,7 +126,7 @@ class PaymentMCPServer:
             customer_email: str = "",
             address: str = "",
             set_installment_by: int = 1,
-            commission_by_dealer: str = "0",
+            commission_by_dealer: str = "12",
             is_commission_diff_by_dealer: int = 0,
             buyer_full_name: str = "",
             buyer_email: str = "",
@@ -159,7 +159,7 @@ class PaymentMCPServer:
             - customer_email: Email address of the customer
             - address: Address of the customer
             - set_installment_by: Determines who sets the number of installments. 0: Customer, 1: Dealer. If 1, `installment_number` must be provided. (default is 1)
-            - commission_by_dealer: Determines who pays the commission. 0: Customer pays all. 1: Dealer pays for single payment, customer for installments. 2-11: Dealer pays for single payment and up to that many installments. 12: Dealer pays for all. (default is "0")
+            - commission_by_dealer: Determines who pays the commission. 0: Customer pays all. 1: Dealer pays for single payment, customer for installments. 2-11: Dealer pays for single payment and up to that many installments. 12: Dealer pays for all. (default is "12")
             - is_commission_diff_by_dealer: If dealer pays for N installments, this decides commission for >N. 0: Customer pays full commission. 1: Customer pays the difference. (default is 0)
             - buyer_full_name: Full name of the buyer
             - buyer_email: Email address of the buyer
